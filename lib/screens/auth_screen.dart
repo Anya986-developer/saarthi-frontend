@@ -22,6 +22,10 @@ class _AuthScreenState extends State<AuthScreen> {
   final _passwordController = TextEditingController();
   final _aadhaarController = TextEditingController();
   final _otpController = TextEditingController();
+  final _usernameController = TextEditingController();
+  final _nameController = TextEditingController();
+  final _departmentController = TextEditingController();
+  final _emailController = TextEditingController();
 
   @override
   void dispose() {
@@ -29,37 +33,65 @@ class _AuthScreenState extends State<AuthScreen> {
     _passwordController.dispose();
     _aadhaarController.dispose();
     _otpController.dispose();
+    _usernameController.dispose();
+    _nameController.dispose();
+    _departmentController.dispose();
+    _emailController.dispose();
     super.dispose();
   }
 
   // SUBMIT
   void _submit() async {
-    if (_phoneController.text.isEmpty || _passwordController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please fill all required fields'),
-        ),
-      );
-      return;
+    // SUBMIT
+    if (_selectedRole == 'user') {
+      if (_phoneController.text.isEmpty || _passwordController.text.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please fill all required fields'),
+          ),
+        );
+        return;
+      }
+    } else {
+      if (_usernameController.text.isEmpty ||
+          _passwordController.text.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please fill all required fields'),
+          ),
+        );
+        return;
+      }
     }
 
-    if (_phoneController.text.length != 10) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Enter a valid 10-digit phone number'),
-        ),
-      );
-      return;
+    if (_selectedRole == 'user') {
+      if (_phoneController.text.length != 10) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Enter a valid 10-digit phone number'),
+          ),
+        );
+        return;
+      }
     }
 
     if (_isLogin) {
       // LOGIN FLOW
       _showLoader();
-      final success = await _apiService.login(
-        _phoneController.text,
-        _passwordController.text,
-        _selectedRole,
-      );
+      bool success;
+
+      if (_selectedRole == 'user') {
+        success = await _apiService.login(
+          _phoneController.text,
+          _passwordController.text,
+          _selectedRole,
+        );
+      } else {
+        success = await _apiService.adminLogin(
+          _usernameController.text,
+          _passwordController.text,
+        );
+      }
       if (mounted) context.pop();
 
       if (success && mounted) {
@@ -85,31 +117,52 @@ class _AuthScreenState extends State<AuthScreen> {
       }
     } else {
       // REGISTER FLOW — Step 1: Request OTP
-      if (_aadhaarController.text.length != 12) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Aadhaar must be exactly 12 digits')),
-        );
-        return;
+      if (_selectedRole == 'user') {
+        if (_aadhaarController.text.length != 12) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Aadhaar must be exactly 12 digits'),
+            ),
+          );
+          return;
+        }
       }
       _showLoader();
-      bool success = await _apiService.requestOtp(
-        _phoneController.text,
-        _aadhaarController.text,
-      );
+      bool success;
+
+      if (_selectedRole == 'user') {
+        success = await _apiService.requestOtp(
+          _phoneController.text,
+          _aadhaarController.text,
+        );
+      } else {
+        success = await _apiService.requestAdminOtp(
+          _emailController.text,
+        );
+      }
       if (mounted) context.pop();
 
       if (success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('OTP sent to your phone!'),
+          SnackBar(
+            content: Text(
+              _selectedRole == 'user'
+                  ? 'OTP sent successfully.'
+                  : 'OTP sent to your email!',
+            ),
             backgroundColor: Colors.green,
           ),
         );
+
         _showOtpBottomSheet();
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to send OTP. Check details.'),
+          SnackBar(
+            content: Text(
+              _selectedRole == 'user'
+                  ? 'Failed to send OTP. Check phone and Aadhaar.'
+                  : 'Failed to send OTP. Check admin email.',
+            ),
             backgroundColor: Colors.red,
           ),
         );
@@ -151,7 +204,10 @@ class _AuthScreenState extends State<AuthScreen> {
                 style: TextStyle(
                     fontSize: 24, fontWeight: FontWeight.bold, color: kNavy)),
             const SizedBox(height: 8),
-            Text("We've sent a code to ${_phoneController.text}",
+            Text(
+                _selectedRole == 'user'
+                    ? "We've sent a code to ${_phoneController.text}"
+                    : "We've sent a code to ${_emailController.text}",
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.grey[600])),
             const SizedBox(height: 24),
@@ -192,7 +248,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text('VERIFY & REGISTER',
+                child: const Text('VERIFY OTP',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -218,13 +274,43 @@ class _AuthScreenState extends State<AuthScreen> {
       return;
     }
     _showLoader();
-    final success = await _apiService.register(
-      _phoneController.text,
-      _passwordController.text,
-      _aadhaarController.text,
-      _selectedRole,
-      _otpController.text,
-    );
+    bool success;
+
+    if (_selectedRole == 'user') {
+      bool otpVerified = await _apiService.verifyOtp(
+        _phoneController.text,
+        _otpController.text,
+      );
+
+      if (!otpVerified) {
+        if (mounted) context.pop();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Invalid or Expired OTP"),
+            backgroundColor: Colors.red,
+          ),
+        );
+
+        return;
+      }
+
+      success = await _apiService.register(
+        _phoneController.text,
+        _passwordController.text,
+        _aadhaarController.text,
+        _selectedRole,
+      );
+    } else {
+      success = await _apiService.adminRegister(
+        _usernameController.text,
+        _nameController.text,
+        _departmentController.text,
+        _emailController.text,
+        _passwordController.text,
+        _otpController.text,
+      );
+    }
     if (mounted) context.pop();
 
     if (success && mounted) {
@@ -234,12 +320,12 @@ class _AuthScreenState extends State<AuthScreen> {
           backgroundColor: kMidBlue,
         ),
       );
-      // After registration, switch to login tab — don't navigate away
+
       setState(() => _isLogin = true);
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Invalid OTP or user already exists.'),
+          content: Text('Registration failed. Please check your details.'),
           backgroundColor: Colors.red,
         ),
       );
@@ -345,24 +431,106 @@ class _AuthScreenState extends State<AuthScreen> {
                 const SizedBox(height: 24),
 
                 // ── Phone field ──
-                TextField(
-                  controller: _phoneController,
-                  keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(
-                    labelText: 'Phone Number',
-                    prefixIcon: Icon(Icons.phone_android, color: kMidBlue),
+                if (_selectedRole == 'user')
+                  TextField(
+                    controller: _phoneController,
+                    keyboardType: TextInputType.phone,
+                    decoration: const InputDecoration(
+                      labelText: 'Phone Number',
+                      prefixIcon: Icon(Icons.phone_android, color: kMidBlue),
+                    ),
+                  )
+                else
+                  TextField(
+                    controller: _usernameController,
+                    textInputAction: TextInputAction.next,
+                    decoration: const InputDecoration(
+                      labelText: 'Username',
+                      prefixIcon: Icon(Icons.person, color: kMidBlue),
+                    ),
                   ),
-                ),
+
                 const SizedBox(height: 16),
 
                 // Aadhaar (register only)
-                if (!_isLogin) ...[
+                if (!_isLogin && _selectedRole == 'user') ...[
                   TextField(
                     controller: _aadhaarController,
                     keyboardType: TextInputType.number,
+                    maxLength: 12,
                     decoration: const InputDecoration(
                       labelText: 'Aadhaar Number',
                       prefixIcon: Icon(Icons.credit_card, color: kMidBlue),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
+                if (!_isLogin && _selectedRole == 'admin') ...[
+                  TextField(
+                    controller: _nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Name',
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    value: _departmentController.text.isEmpty
+                        ? null
+                        : _departmentController.text,
+                    decoration: const InputDecoration(
+                      labelText: 'Department',
+                      prefixIcon: Icon(Icons.category, color: kMidBlue),
+                      border: OutlineInputBorder(),
+                    ),
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'Agriculture & Farmers',
+                        child: Text('Agriculture & Farmers'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'Business, Employment & MSME',
+                        child: Text('Business, Employment & MSME'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'Education & Learning',
+                        child: Text('Education & Learning'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'Financial Inclusion & Social Security',
+                        child: Text('Financial Inclusion & Social Security'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'Housing & Shelter',
+                        child: Text('Housing & Shelter'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'Infrastructure, Transport & Connectivity',
+                        child: Text('Infrastructure, Transport & Connectivity'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'Rural Development & Governance',
+                        child: Text('Rural Development & Governance'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'Water Supply & Sanitation',
+                        child: Text('Water Supply & Sanitation'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'Women, Children & Social Welfare',
+                        child: Text('Women, Children & Social Welfare'),
+                      ),
+                    ],
+                    onChanged: (value) {
+                      _departmentController.text = value ?? '';
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: const InputDecoration(
+                      labelText: 'Admin Email',
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -373,7 +541,7 @@ class _AuthScreenState extends State<AuthScreen> {
                   controller: _passwordController,
                   obscureText: true,
                   decoration: const InputDecoration(
-                    labelText: 'Password / PIN',
+                    labelText: 'Password',
                     prefixIcon: Icon(Icons.lock_outline, color: kMidBlue),
                   ),
                 ),

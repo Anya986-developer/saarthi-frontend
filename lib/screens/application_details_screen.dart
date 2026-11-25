@@ -158,6 +158,30 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
     }
   }
 
+  Future<void> _verifyDocument(String documentId) async {
+    try {
+      await _apiService.verifyDocument(documentId);
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Document verified successfully"),
+        ),
+      );
+
+      _loadApplication();
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString()),
+        ),
+      );
+    }
+  }
+
   Widget _buildApplicantCard() {
     final profile = _application?["user"]?["profile"];
 
@@ -535,20 +559,25 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
                       ),
                     ),
                     subtitle: Text(
-                      doc["status"] ?? "PENDING",
+                      doc["status"] == "VERIFIED"
+                          ? "Verified"
+                          : "Pending Verification",
                     ),
-                    trailing: Icon(
-                      doc["status"] == "APPROVED"
-                          ? Icons.check_circle
-                          : doc["status"] == "REJECTED"
-                              ? Icons.cancel
-                              : Icons.pending,
-                      color: doc["status"] == "APPROVED"
-                          ? Colors.green
-                          : doc["status"] == "REJECTED"
-                              ? Colors.red
-                              : Colors.orange,
-                    ),
+                    trailing: doc["status"] == "VERIFIED"
+                        ? const Icon(
+                            Icons.verified,
+                            color: Colors.green,
+                          )
+                        : ElevatedButton(
+                            onPressed: () {
+                              _verifyDocument(doc["id"]);
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green,
+                              foregroundColor: Colors.white,
+                            ),
+                            child: const Text("Verify"),
+                          ),
                     onTap: () async {
                       final documentId = doc["id"];
 

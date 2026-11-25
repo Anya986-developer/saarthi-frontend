@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../services/api_service.dart';
 import 'application_details_screen.dart';
+import 'scheme_management.dart';
 
 //  Admin Dashboard
 //  Route: '/admin'
@@ -90,33 +91,25 @@ class _AdminDashboardState extends State<AdminDashboard> {
           ),
         ),
         actions: [
-          IconButton(
-            onPressed: () {},
+          TextButton.icon(
+            onPressed: () async {
+              await _api.logout();
+
+              if (!mounted) return;
+
+              context.go("/login");
+            },
             icon: const Icon(
-              Icons.notifications_none,
+              Icons.logout,
               color: Color(0xff123A73),
             ),
-          ),
-          PopupMenuButton<String>(
-            icon: const CircleAvatar(
-              radius: 18,
-              backgroundColor: Color(0xff1565C0),
-              child: Text(
-                "A",
-                style: TextStyle(color: Colors.white),
+            label: const Text(
+              "Logout",
+              style: TextStyle(
+                color: Color(0xff123A73),
+                fontWeight: FontWeight.w600,
               ),
             ),
-            onSelected: (value) {
-              if (value == "logout") {
-                context.go("/auth");
-              }
-            },
-            itemBuilder: (context) => const [
-              PopupMenuItem(
-                value: "logout",
-                child: Text("Logout"),
-              ),
-            ],
           ),
           const SizedBox(width: 8),
         ],
@@ -180,26 +173,124 @@ class _AdminDashboardState extends State<AdminDashboard> {
           ),
         ],
       ),
-      child: const Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            "Welcome Back 👋",
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Color(0xff123A73),
-            ),
-          ),
-          SizedBox(height: 8),
-          Text(
-            "Manage schemes, users and applications from one place.",
-            style: TextStyle(
-              color: Colors.grey,
-              fontSize: 14,
-            ),
-          ),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isMobile = constraints.maxWidth < 600;
+
+          if (isMobile) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Welcome Back 👋",
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xff123A73),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  "Manage schemes, users and applications from one place.",
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xff2563EB),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const SchemeManagementScreen(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.description_outlined),
+                    label: const Text(
+                      "Manage Schemes",
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          }
+
+          return Row(
+            children: [
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Welcome Back 👋",
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xff123A73),
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      "Manage schemes, users and applications from one place.",
+                      style: TextStyle(
+                        color: Colors.grey,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 20),
+              SizedBox(
+                height: 50,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xff2563EB),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 22,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const SchemeManagementScreen(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.description_outlined),
+                  label: const Text(
+                    "Manage Schemes",
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -502,7 +593,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
     Color statusColor;
 
-    switch (status) {
+    switch (status.toUpperCase()) {
       case "APPROVED":
         statusColor = Colors.green;
         break;
@@ -732,94 +823,146 @@ class _AdminDashboardState extends State<AdminDashboard> {
               ],
             ),
             const SizedBox(height: 18),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    icon: const Icon(Icons.visibility),
-                    label: const Text("View"),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => ApplicationDetailScreen(
-                            applicationId: app["id"],
-                          ),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final isMobile = constraints.maxWidth < 420;
+
+                if (isMobile) {
+                  return Column(
+                    children: [
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.visibility),
+                          label: const Text("View"),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ApplicationDetailScreen(
+                                  applicationId: app["id"],
+                                ),
+                              ),
+                            );
+                          },
                         ),
-                      );
-                    },
-                  ),
-                ),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    icon: const Icon(Icons.check),
-                    label: const Text("Approve"),
-                    onPressed: () async {
-                      try {
-                        await _api.updateApplicationStatus(
-                          app["id"],
-                          "APPROVED",
-                        );
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              icon: const Icon(Icons.check),
+                              label: const Text("Approve"),
+                              onPressed: () async {
+                                try {
+                                  await _api.updateApplicationStatus(
+                                    app["id"],
+                                    "APPROVED",
+                                  );
 
-                        if (!mounted) return;
+                                  if (!mounted) return;
 
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text("Application Approved"),
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text("Application Approved"),
+                                    ),
+                                  );
+
+                                  await _loadAdminData();
+                                } catch (e) {}
+                              },
+                            ),
                           ),
-                        );
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.red,
+                              ),
+                              icon: const Icon(Icons.close),
+                              label: const Text("Reject"),
+                              onPressed: () async {
+                                try {
+                                  await _api.updateApplicationStatus(
+                                    app["id"],
+                                    "REJECTED",
+                                  );
 
-                        await _loadAdminData();
-                      } catch (e) {
-                        if (!mounted) return;
+                                  if (!mounted) return;
 
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(e.toString()),
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text("Application Rejected"),
+                                    ),
+                                  );
+
+                                  await _loadAdminData();
+                                } catch (e) {}
+                              },
+                            ),
                           ),
-                        );
-                      }
-                    },
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.red,
+                        ],
+                      ),
+                    ],
+                  );
+                }
+
+                return Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.visibility),
+                        label: const Text("View"),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ApplicationDetailScreen(
+                                applicationId: app["id"],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
                     ),
-                    icon: const Icon(Icons.close),
-                    label: const Text("Reject"),
-                    onPressed: () async {
-                      try {
-                        await _api.updateApplicationStatus(
-                          app["id"],
-                          "REJECTED",
-                        );
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.check),
+                        label: const Text("Approve"),
+                        onPressed: () async {
+                          await _api.updateApplicationStatus(
+                            app["id"],
+                            "APPROVED",
+                          );
 
-                        if (!mounted) return;
+                          await _loadAdminData();
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.red,
+                        ),
+                        icon: const Icon(Icons.close),
+                        label: const Text("Reject"),
+                        onPressed: () async {
+                          await _api.updateApplicationStatus(
+                            app["id"],
+                            "REJECTED",
+                          );
 
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text("Application Rejected"),
-                          ),
-                        );
-
-                        await _loadAdminData();
-                      } catch (e) {
-                        if (!mounted) return;
-
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(e.toString()),
-                          ),
-                        );
-                      }
-                    },
-                  ),
-                ),
-              ],
-            ),
+                          await _loadAdminData();
+                        },
+                      ),
+                    ),
+                  ],
+                );
+              },
+            )
           ],
         ),
       ),

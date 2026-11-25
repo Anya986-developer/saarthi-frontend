@@ -31,7 +31,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   void initState() {
     super.initState();
     loadProfile();
-    
   }
 
   Future<void> loadProfile() async {
@@ -61,6 +60,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     } catch (_) {
       return null;
     }
+  }
+
+  String getDocumentStatus(String category) {
+    final doc = getUploadedDocument(category);
+
+    if (doc == null) {
+      return "PENDING";
+    }
+
+    return doc["status"] ?? "PENDING";
   }
 
   Future<void> uploadDocument(String documentType) async {
@@ -119,6 +128,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
                   final result = await FilePicker.platform.pickFiles(
                     type: FileType.custom,
+                    withData: true,
                     allowedExtensions: [
                       "pdf",
                       "jpg",
@@ -131,7 +141,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
                   final picked = result.files.single;
 
-                  if (picked.bytes == null) {
+                  if (picked.bytes == null && picked.path == null) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text("Unable to read file"),
@@ -271,99 +281,339 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       bool uploaded,
       String documentType,
     ) {
-      return ListTile(
-        leading: Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: const Color(0xffECFDF5),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: const Icon(
-            Icons.description_outlined,
-            color: Color(0xff10B981),
-          ),
+      final status = getDocumentStatus(documentType);
+      return Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 10,
         ),
-        title: Text(
-          title,
-          style: const TextStyle(fontWeight: FontWeight.w600),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final mobile = constraints.maxWidth < 650;
+
+            return mobile
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xffECFDF5),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(
+                              Icons.description_outlined,
+                              color: Color(0xff10B981),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  title,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                Text(subtitle),
+                                Text(
+                                  "Supported: PDF, JPG, JPEG, PNG",
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      if (uploaded)
+                        Wrap(
+                          spacing: 10,
+                          runSpacing: 10,
+                          children: [
+                            ElevatedButton.icon(
+                              onPressed: null,
+                              icon: const Icon(
+                                Icons.check_circle,
+                                color: Colors.white,
+                                size: 18,
+                              ),
+                              label: const Text(
+                                "Uploaded",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                elevation: 0,
+                                disabledBackgroundColor:
+                                    const Color(0xFF22C55E),
+                                disabledForegroundColor: Colors.white,
+                                backgroundColor: const Color(0xFF22C55E),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 20,
+                                  vertical: 14,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                              ),
+                            ),
+                            OutlinedButton.icon(
+                              onPressed: null,
+                              icon: Icon(
+                                status == "VERIFIED"
+                                    ? Icons.verified
+                                    : Icons.pending_outlined,
+                                size: 18,
+                              ),
+                              label: Text(
+                                status == "VERIFIED" ? "Verified" : "Pending",
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: status == "VERIFIED"
+                                    ? Colors.green
+                                    : Colors.red,
+                                side: BorderSide(
+                                  color: status == "VERIFIED"
+                                      ? Colors.green
+                                      : Colors.red,
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 20,
+                                  vertical: 14,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            OutlinedButton.icon(
+                              onPressed: () async {
+                                final doc = getUploadedDocument(documentType);
+
+                                if (doc == null) return;
+
+                                final response =
+                                    await _api.getDocument(doc["id"]);
+
+                                await launchUrl(
+                                  Uri.parse(response["url"]),
+                                  mode: LaunchMode.externalApplication,
+                                );
+                              },
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: const Color(0xFF047857),
+                                backgroundColor: Colors.white,
+                                side: const BorderSide(
+                                  color: Color(0xFF10B981),
+                                  width: 1.5,
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 22,
+                                  vertical: 14,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                              ),
+                              icon: const Icon(
+                                Icons.visibility_outlined,
+                                size: 18,
+                              ),
+                              label: const Text(
+                                "View",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        )
+                      else
+                        OutlinedButton.icon(
+                          onPressed: () {
+                            uploadDocument(documentType);
+                          },
+                          icon:
+                              const Icon(Icons.cloud_upload_outlined, size: 18),
+                          label: const Text("Upload"),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF059669),
+                            side: const BorderSide(
+                              color: Color(0xFF10B981),
+                              width: 1.5,
+                            ),
+                            backgroundColor: const Color(0xFFF0FDF4),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 22,
+                              vertical: 14,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                        ),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xffECFDF5),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.description_outlined,
+                          color: Color(0xff10B981),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              title,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            Text(subtitle),
+                            Text(
+                              "Supported: PDF, JPG, JPEG, PNG",
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      if (uploaded) ...[
+                        ElevatedButton.icon(
+                          onPressed: null,
+                          icon: const Icon(
+                            Icons.check_circle,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                          label: const Text(
+                            "Uploaded",
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            elevation: 0,
+                            disabledBackgroundColor: const Color(0xFF22C55E),
+                            disabledForegroundColor: Colors.white,
+                            backgroundColor: const Color(0xFF22C55E),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 14,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        OutlinedButton.icon(
+                          onPressed: null,
+                          icon: Icon(
+                            status == "VERIFIED"
+                                ? Icons.verified
+                                : Icons.pending_outlined,
+                            size: 18,
+                          ),
+                          label: Text(
+                            status == "VERIFIED" ? "Verified" : "Pending",
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: status == "VERIFIED"
+                                ? Colors.green
+                                : Colors.red,
+                            side: BorderSide(
+                              color: status == "VERIFIED"
+                                  ? Colors.green
+                                  : Colors.red,
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 14,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        OutlinedButton.icon(
+                          onPressed: () async {
+                            final doc = getUploadedDocument(documentType);
+
+                            if (doc == null) return;
+
+                            final response = await _api.getDocument(doc["id"]);
+
+                            await launchUrl(
+                              Uri.parse(response["url"]),
+                              mode: LaunchMode.externalApplication,
+                            );
+                          },
+                          icon: const Icon(Icons.visibility),
+                          label: const Text("View"),
+                        ),
+                      ] else
+                        OutlinedButton.icon(
+                          onPressed: () {
+                            uploadDocument(documentType);
+                          },
+                          icon:
+                              const Icon(Icons.cloud_upload_outlined, size: 18),
+                          label: const Text("Upload"),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF059669),
+                            side: const BorderSide(
+                              color: Color(0xFF10B981),
+                              width: 1.5,
+                            ),
+                            backgroundColor: const Color(0xFFF0FDF4),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 22,
+                              vertical: 14,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+          },
         ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(subtitle),
-            const SizedBox(height: 2),
-            Text(
-              "Supported: PDF, JPG, JPEG, PNG (Max 5 MB)",
-              style: TextStyle(
-                fontSize: 11,
-                color: Colors.grey.shade600,
-              ),
-            ),
-          ],
-        ),
-        trailing: uploaded
-            ? Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ElevatedButton.icon(
-                    onPressed: null,
-                    style: ElevatedButton.styleFrom(
-                      elevation: 0,
-                      backgroundColor: const Color(0xffDCFCE7),
-                      disabledBackgroundColor: const Color(0xffDCFCE7),
-                      foregroundColor: const Color(0xff15803D),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 18,
-                        vertical: 12,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                    ),
-                    icon: const Icon(
-                      Icons.check,
-                      size: 18,
-                      color: Color(0xff15803D),
-                    ),
-                    label: const Text(
-                      "Uploaded",
-                      style: TextStyle(
-                        color: Color(0xff15803D),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  OutlinedButton.icon(
-                    onPressed: () async {
-                      final doc = getUploadedDocument(documentType);
-
-                      if (doc == null) return;
-
-                      final response = await _api.getDocument(doc["id"]);
-
-                      final url = response["url"];
-
-                      await launchUrl(
-                        Uri.parse(url),
-                        mode: LaunchMode.externalApplication,
-                      );
-                    },
-                    icon: const Icon(Icons.visibility),
-                    label: const Text("View"),
-                  ),
-                ],
-              )
-            : OutlinedButton(
-                onPressed: () {
-                  uploadDocument(documentType);
-                },
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: primary,
-                  side: BorderSide(color: primary),
-                ),
-                child: const Text("Upload"),
-              ),
       );
     }
 

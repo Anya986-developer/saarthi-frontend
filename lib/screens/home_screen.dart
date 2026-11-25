@@ -34,6 +34,20 @@ class _HomeScreenState extends State<HomeScreen> {
   // Default fallback name
   String _userName = "Citizen";
   String? _profilePhotoUrl;
+  String _selectedCategory = "All";
+
+  final List<String> _categories = [
+    "All",
+    "Agriculture & Farmers",
+    "Business, Employment & MSME",
+    "Education & Learning",
+    "Financial Inclusion & Social Security",
+    "Housing & Shelter",
+    "Infrastructure, Transport & Connectivity",
+    "Rural Development & Governance",
+    "Water Supply & Sanitation",
+    "Women, Children & Social Welfare",
+  ];
 
   @override
   void initState() {
@@ -47,10 +61,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _onItemTapped(int index) {
-  setState(() {
-    _selectedIndex = index;
-  });
-}
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
 
   Future<void> _loadData() async {
     // 1. Fetch Schemes
@@ -91,16 +105,46 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _scrollToTopMatched() {
-  final context = _topMatchedKey.currentContext;
+    final context = _topMatchedKey.currentContext;
 
-  if (context != null) {
-    Scrollable.ensureVisible(
-      context,
-      duration: const Duration(milliseconds: 700),
-      curve: Curves.easeInOut,
+    if (context != null) {
+      Scrollable.ensureVisible(
+        context,
+        duration: const Duration(milliseconds: 700),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
+  void _showCategoryFilter() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(24),
+        ),
+      ),
+      builder: (context) {
+        return ListView(
+          shrinkWrap: true,
+          children: _categories.map((category) {
+            return RadioListTile<String>(
+              title: Text(category),
+              value: category,
+              groupValue: _selectedCategory,
+              onChanged: (value) {
+                setState(() {
+                  _selectedCategory = value!;
+                });
+
+                Navigator.pop(context);
+              },
+            );
+          }).toList(),
+        );
+      },
     );
   }
-}
 
   Widget _buildStatItem({
     required IconData icon,
@@ -185,7 +229,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 20),
                 ElevatedButton(
-  onPressed: _scrollToTopMatched,
+                  onPressed: _scrollToTopMatched,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xff11479A),
                     foregroundColor: Colors.white,
@@ -397,17 +441,74 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             const SizedBox(height: 30),
-            Container(
-  key: _topMatchedKey,
-  child: const Text(
-    "Top Matched Schemes",
-    style: TextStyle(
-      fontSize: 22,
-      fontWeight: FontWeight.bold,
-      color: kNavy,
-    ),
-  ),
-),
+            LayoutBuilder(
+              key: _topMatchedKey,
+              builder: (context, constraints) {
+                final isMobile = MediaQuery.of(context).size.width < 600;
+
+                if (isMobile) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        "Top Matched Schemes",
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: kNavy,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: OutlinedButton.icon(
+                          icon: const Icon(Icons.filter_alt_outlined),
+                          label: const Text("Filter"),
+                          onPressed: _showCategoryFilter,
+                        ),
+                      ),
+                    ],
+                  );
+                }
+
+                return Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        "Top Matched Schemes",
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: kNavy,
+                        ),
+                      ),
+                    ),
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.filter_alt_outlined),
+                      label: const Text("Filter"),
+                      onPressed: _showCategoryFilter,
+                    ),
+                  ],
+                );
+              },
+            ),
+            if (_selectedCategory != "All")
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Wrap(
+                  children: [
+                    Chip(
+                      label: Text(_selectedCategory),
+                      deleteIcon: const Icon(Icons.close),
+                      onDeleted: () {
+                        setState(() {
+                          _selectedCategory = "All";
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ),
             const SizedBox(height: 16),
             const SizedBox(height: 16),
             FutureBuilder<List<dynamic>>(
@@ -435,7 +536,13 @@ class _HomeScreenState extends State<HomeScreen> {
                   );
                 }
 
-                final schemes = snapshot.data ?? [];
+                final allSchemes = snapshot.data ?? [];
+
+                final schemes = _selectedCategory == "All"
+                    ? allSchemes
+                    : allSchemes.where((scheme) {
+                        return scheme["category"] == _selectedCategory;
+                      }).toList();
 
                 if (schemes.isEmpty) {
                   return Center(
@@ -494,65 +601,144 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: Column(
                             children: [
                               /// Top Row
-                              Row(
-                                children: [
-                                  Container(
-                                    height: 55,
-                                    width: 55,
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xffE8F2FF),
-                                      borderRadius: BorderRadius.circular(16),
-                                    ),
-                                    child: const Icon(
-                                      Icons.account_balance_rounded,
-                                      color: kMidBlue,
-                                      size: 30,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 15),
-                                  Expanded(
-                                    child: Column(
+                              LayoutBuilder(
+                                builder: (context, constraints) {
+                                  final isMobile = MediaQuery.of(context).size.width < 600;
+
+                                  if (isMobile) {
+                                    return Column(
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
-                                        Text(
-                                          scheme['name'] ?? '',
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 18,
-                                            color: kNavy,
-                                          ),
+                                        Row(
+                                          children: [
+                                            Container(
+                                              height: 55,
+                                              width: 55,
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xffE8F2FF),
+                                                borderRadius:
+                                                    BorderRadius.circular(16),
+                                              ),
+                                              child: const Icon(
+                                                Icons.account_balance_rounded,
+                                                color: kMidBlue,
+                                                size: 30,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 15),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    scheme['name'] ?? '',
+                                                    maxLines: 2,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                    style: const TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      fontSize: 18,
+                                                      color: kNavy,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 6),
+                                                  Text(
+                                                    scheme['category'] ?? '',
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
                                         ),
-                                        const SizedBox(height: 6),
-                                        Text(
-                                          scheme['category'] ?? '',
-                                          style: TextStyle(
-                                            color: Colors.grey.shade600,
+                                        const SizedBox(height: 12),
+                                        Align(
+                                          alignment: Alignment.centerLeft,
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                              vertical: 8,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Colors.green.shade50,
+                                              borderRadius:
+                                                  BorderRadius.circular(25),
+                                            ),
+                                            child: Text(
+                                              "${scheme['matchPercentage'] ?? 100}%",
+                                            ),
                                           ),
                                         ),
                                       ],
-                                    ),
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 8,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.green.shade50,
-                                      borderRadius: BorderRadius.circular(25),
-                                    ),
-                                    child: Text(
-                                      "${scheme['matchPercentage'] ?? 100}%",
-                                      style: TextStyle(
-                                        color: Colors.green.shade700,
-                                        fontWeight: FontWeight.bold,
+                                    );
+                                  }
+
+                                  // Keep your existing Row here for desktop.
+                                  return Row(
+                                    children: [
+                                      Container(
+                                        height: 55,
+                                        width: 55,
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xffE8F2FF),
+                                          borderRadius:
+                                              BorderRadius.circular(16),
+                                        ),
+                                        child: const Icon(
+                                          Icons.account_balance_rounded,
+                                          color: kMidBlue,
+                                          size: 30,
+                                        ),
                                       ),
-                                    ),
-                                  ),
-                                ],
+                                      const SizedBox(width: 15),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              scheme['name'] ?? '',
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 18,
+                                                color: kNavy,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 6),
+                                            Text(
+                                              scheme['category'] ?? '',
+                                              style: TextStyle(
+                                                color: Colors.grey.shade600,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 8,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.green.shade50,
+                                          borderRadius:
+                                              BorderRadius.circular(25),
+                                        ),
+                                        child: Text(
+                                          "${scheme['matchPercentage'] ?? 100}%",
+                                          style: TextStyle(
+                                            color: Colors.green.shade700,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                },
                               ),
 
                               const SizedBox(height: 16),
@@ -569,68 +755,121 @@ class _HomeScreenState extends State<HomeScreen> {
 
                               const SizedBox(height: 18),
 
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 14,
-                                      vertical: 8,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xffEEF6FF),
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: Text(
-                                      scheme['category'] ?? 'General',
-                                      style: const TextStyle(
-                                        color: kMidBlue,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                  const Spacer(),
-                                  ElevatedButton(
-                                    onPressed: () async {
-                                      await context.push(
-                                        '/scheme_detail',
-                                        extra: scheme,
-                                      );
+                              LayoutBuilder(
+                                builder: (context, constraints) {
+                                  final isMobile = MediaQuery.of(context).size.width < 600;
 
-                                      _loadData();
-                                    },
-                                    style: ElevatedButton.styleFrom(
-                                      elevation: 0,
-                                      backgroundColor: kMidBlue,
-                                      foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 18,
-                                        vertical: 12,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(14),
-                                      ),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
+                                  if (isMobile) {
+                                    return Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
-                                        Text(
-                                          isApplied ? "Applied" : "View",
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 14,
+                                            vertical: 8,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xffEEF6FF),
+                                            borderRadius:
+                                                BorderRadius.circular(20),
+                                          ),
+                                          child: Text(
+                                            scheme['category'] ?? 'General',
+                                            style: const TextStyle(
+                                              color: kMidBlue,
+                                              fontWeight: FontWeight.w600,
+                                            ),
                                           ),
                                         ),
-                                        const SizedBox(width: 6),
-                                        Icon(
-                                          isApplied
-                                              ? Icons.check_circle
-                                              : Icons.arrow_forward,
-                                          size: 18,
+                                        const SizedBox(height: 14),
+                                        SizedBox(
+                                          width: double.infinity,
+                                          child: ElevatedButton(
+                                            onPressed: () async {
+                                              await context.push(
+                                                '/scheme_detail',
+                                                extra: scheme,
+                                              );
+
+                                              _loadData();
+                                            },
+                                            child: Text(
+                                              isApplied ? "Applied" : "View",
+                                            ),
+                                          ),
                                         ),
                                       ],
-                                    ),
-                                  )
-                                ],
-                              )
+                                    );
+                                  }
+
+                                  // Keep your existing Row here for desktop.
+                                  return Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 14,
+                                          vertical: 8,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xffEEF6FF),
+                                          borderRadius:
+                                              BorderRadius.circular(20),
+                                        ),
+                                        child: Text(
+                                          scheme['category'] ?? 'General',
+                                          style: const TextStyle(
+                                            color: kMidBlue,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                      const Spacer(),
+                                      ElevatedButton(
+                                        onPressed: () async {
+                                          await context.push(
+                                            '/scheme_detail',
+                                            extra: scheme,
+                                          );
+
+                                          _loadData();
+                                        },
+                                        style: ElevatedButton.styleFrom(
+                                          elevation: 0,
+                                          backgroundColor: kMidBlue,
+                                          foregroundColor: Colors.white,
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 18,
+                                            vertical: 12,
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(14),
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(
+                                              isApplied ? "Applied" : "View",
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Icon(
+                                              isApplied
+                                                  ? Icons.check_circle
+                                                  : Icons.arrow_forward,
+                                              size: 18,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              ),
                             ],
                           ),
                         ),
@@ -738,31 +977,21 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
         actions: [
-          IconButton(
+          TextButton.icon(
+            onPressed: _logout,
             icon: const Icon(
-              Icons.notifications_none_rounded,
-              color: kNavy,
-              size: 28,
-            ),
-            onPressed: () {},
-          ),
-          PopupMenuButton<String>(
-            icon: const Icon(
-              Icons.more_vert,
+              Icons.logout,
               color: kNavy,
             ),
-            onSelected: (value) {
-              if (value == 'logout') {
-                _logout();
-              }
-            },
-            itemBuilder: (context) => const [
-              PopupMenuItem(
-                value: 'logout',
-                child: Text('Logout'),
+            label: const Text(
+              "Logout",
+              style: TextStyle(
+                color: kNavy,
+                fontWeight: FontWeight.w600,
               ),
-            ],
+            ),
           ),
+          const SizedBox(width: 8),
         ],
       ),
       body: IndexedStack(

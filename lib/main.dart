@@ -12,6 +12,8 @@ import 'screens/scheme_detail_screen.dart';
 import 'screens/profile_processing_screen.dart';
 import 'screens/edit_profile_screen.dart';
 import 'screens/application_details_screen.dart';
+import 'screens/scheme_management.dart';
+import 'screens/add_edit_scheme_screen.dart';
 
 void main() {
   runApp(const ProviderScope(child: SchemeEngineApp()));
@@ -82,6 +84,22 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/admin',
         builder: (context, state) => const AdminDashboard(),
+      ),
+
+      GoRoute(
+        path: '/scheme_management',
+        builder: (context, state) => const SchemeManagementScreen(),
+      ),
+
+      GoRoute(
+        path: '/add_edit_scheme',
+        builder: (context, state) {
+          final schemeId = state.extra as String?;
+
+          return AddEditSchemeScreen(
+            schemeId: schemeId,
+          );
+        },
       ),
 
       GoRoute(

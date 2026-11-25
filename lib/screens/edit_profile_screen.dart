@@ -321,11 +321,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   ],
                 ),
               ),
-              // ======================= PART 2 =======================
-// Paste this code inside the Column(children: [...])
-// immediately AFTER the Profile Card Container,
-// and BEFORE the closing ], of the Column.
-
+              
               const SizedBox(height: 20),
 
               Container(
