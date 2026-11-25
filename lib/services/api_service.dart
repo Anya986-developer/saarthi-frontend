@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 
-const String baseUrl = "http://localhost:3000/api";
+const String baseUrl = "https://saarthi-t64v.onrender.com/api";
 
 class ApiService {
   final Dio _dio = Dio(BaseOptions(baseUrl: baseUrl));
